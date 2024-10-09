@@ -1,0 +1,48 @@
+//2. list transactionns with search,pagination,filter by month
+
+const API_BASE_URL = 'http://localhost:5000/'; 
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+app.get('/api/transactions', async (req, res) => {
+    const { search = '', page = 1, perPage = 10, month } = req.query;
+    const skip = (page - 1) * perPage;
+
+
+    const escapedSearch = escapeRegExp(search);
+    const regex = new RegExp(escapedSearch, 'i'); 
+
+    try {
+        const filter = {};
+
+        if (!isNaN(search) && search.trim() !== '') {
+            filter.price = Number(search);
+        } else {
+            filter.$or = [
+                { title: regex },
+                { description: regex },
+                { category: regex },
+            ];
+        }
+
+        if (month) {
+            const monthNumber = parseInt(month, 10); 
+            if (!isNaN(monthNumber)) {
+                filter.month = monthNumber; 
+            }
+        }
+
+        const transactions = await Transaction.find(filter)
+            .skip(skip)
+            .limit(perPage);
+
+        const count = await Transaction.countDocuments(filter);
+
+        res.status(200).json({ transactions, total: count });
+    } catch (error) {
+        console.error('Error fetching transactions:', error);
+        res.status(500).send('Error fetching transactions');
+    }
+});
